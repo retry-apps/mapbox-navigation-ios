@@ -366,16 +366,21 @@ open class CarPlayNavigationViewController: UIViewController {
             }
         }
 
-        let backgroundColor = delegate?.carPlayNavigationViewController(
+        if let backgroundColor = delegate?.carPlayNavigationViewController(
             self,
             guidanceBackgroundColorFor: currentUserInterfaceStyle
-        )
+        ) {
+            mapTemplate.guidanceBackgroundColor = backgroundColor
+            mapTemplate.tripEstimateStyle = .dark
+            return
+        }
+
         switch currentUserInterfaceStyle {
         case .dark:
-            mapTemplate.guidanceBackgroundColor = backgroundColor ?? .black
+            mapTemplate.guidanceBackgroundColor = .black
             mapTemplate.tripEstimateStyle = .dark
         default:
-            mapTemplate.guidanceBackgroundColor = backgroundColor ?? .white
+            mapTemplate.guidanceBackgroundColor = .white
             mapTemplate.tripEstimateStyle = .light
         }
     }
