@@ -926,6 +926,9 @@ open class CarPlayNavigationViewController: UIViewController {
                 timeRemaining: step.expectedTravelTime
             )
             primaryManeuver.instructionVariants = [step.instructions]
+            if #available(iOS 15.4, *) {
+                primaryManeuver.cardBackgroundColor = UIColor(red: 0.0, green: 60.0 / 255.0, blue: 1.0, alpha: 1.0)
+            }
             carSession.upcomingManeuvers = [primaryManeuver]
             return
         }
@@ -940,7 +943,7 @@ open class CarPlayNavigationViewController: UIViewController {
         )
 
         if #available(iOS 15.4, *) {
-            primaryManeuver.cardBackgroundColor = #colorLiteral(red: 0.07450980392, green: 0.3137254902, blue: 0.7843137255, alpha: 1)
+            primaryManeuver.cardBackgroundColor = UIColor(red: 0.0, green: 60.0 / 255.0, blue: 1.0, alpha: 1.0)
         }
         // Just incase, set some default text
         var text = visualInstruction.primaryInstruction.text ?? step.instructions
@@ -1019,6 +1022,9 @@ open class CarPlayNavigationViewController: UIViewController {
         // Add tertiary information, if available
         if let tertiaryInstruction = visualInstruction.tertiaryInstruction {
             let tertiaryManeuver = CPManeuver()
+            if #available(iOS 15.4, *) {
+                tertiaryManeuver.cardBackgroundColor = UIColor(red: 0.0, green: 60.0 / 255.0, blue: 1.0, alpha: 1.0)
+            }
             if tertiaryInstruction.containsLaneIndications {
                 // add lanes visual banner
                 if let imageSet = visualInstruction.tertiaryInstruction?.lanesImageSet(
