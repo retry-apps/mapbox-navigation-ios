@@ -279,8 +279,17 @@ public class CarPlayManager: NSObject {
 
         let title = isVoiceMuted ? unmuteTitle : muteTitle
         let muteButton = CPBarButton(title: title) { [weak self] (button: CPBarButton) in
-            self?.routeVoiceController.speechSynthesizer.muted.toggle()
-            button.title = self?.isVoiceMuted == true ? unmuteTitle : muteTitle
+            guard let self else { return }
+
+            routeVoiceController.speechSynthesizer.muted.toggle()
+            button.title = isVoiceMuted ? unmuteTitle : muteTitle
+
+            // CarPlay may not repaint an already displayed CPBarButton after only mutating
+            // its title. Reassigning the current navigation bar buttons forces the template
+            // to refresh and display the new Mute/Unmute title.
+            if let mapTemplate = interfaceController?.rootTemplate as? CPMapTemplate {
+                mapTemplate.leadingNavigationBarButtons = mapTemplate.leadingNavigationBarButtons
+            }
         }
 
         return muteButton
