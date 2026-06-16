@@ -761,6 +761,9 @@ open class CarPlayNavigationViewController: UIViewController {
 
     func observeNotifications() {
         core.navigation().routeProgress.sink { [weak self] progress in
+            // Keep CarPlay's CPNavigationSession in sync even if the initial banner instruction
+            // event is missed during the transition from route preview to active guidance.
+            self?.updateManeuvers()
             self?.progressDidChange(progress?.routeProgress)
         }
         .store(in: &cancellable)
@@ -808,7 +811,6 @@ open class CarPlayNavigationViewController: UIViewController {
         checkTunnelState(at: location, along: routeProgress)
 
         let congestionLevel = routeProgress.averageCongestionLevelRemainingOnLeg ?? .unknown
-        guard let maneuver = carSession.upcomingManeuvers.first else { return }
 
         let routeDistance = localized(measurement: Measurement(distance: routeProgress.distanceRemaining))
         // Show "1 min" instead of "0 min" when less than 1 min remaining
@@ -826,7 +828,9 @@ open class CarPlayNavigationViewController: UIViewController {
             distanceRemaining: stepDistance,
             timeRemaining: stepProgress.durationRemaining
         )
-        carSession.updateEstimates(stepEstimates, for: maneuver)
+        if let maneuver = carSession.upcomingManeuvers.first {
+            carSession.updateEstimates(stepEstimates, for: maneuver)
+        }
 
         if let compassView, !compassView.isHidden {
             compassView.course = location.course
@@ -907,12 +911,27 @@ open class CarPlayNavigationViewController: UIViewController {
     }
 
     func updateManeuvers() {
-        guard let routeProgress = core.navigation().currentRouteProgress?.routeProgress,
-              let visualInstruction = routeProgress.currentLegProgress.currentStepProgress.currentVisualInstruction,
-              visualInstruction != currentVisualInstruction
-        else { return }
-        currentVisualInstruction = visualInstruction
+        guard let routeProgress = core.navigation().currentRouteProgress?.routeProgress else { return }
+
         let step = routeProgress.currentLegProgress.currentStep
+        let stepProgress = routeProgress.currentLegProgress.currentStepProgress
+
+        guard let visualInstruction = stepProgress.currentVisualInstruction else {
+            guard carSession.upcomingManeuvers.isEmpty else { return }
+
+            let primaryManeuver = CPManeuver()
+            let distance = localized(measurement: Measurement(distance: step.distance))
+            primaryManeuver.initialTravelEstimates = CPTravelEstimates(
+                distanceRemaining: distance,
+                timeRemaining: step.expectedTravelTime
+            )
+            primaryManeuver.instructionVariants = [step.instructions]
+            carSession.upcomingManeuvers = [primaryManeuver]
+            return
+        }
+
+        guard visualInstruction != currentVisualInstruction else { return }
+        currentVisualInstruction = visualInstruction
         let primaryManeuver = CPManeuver()
         let distance = localized(measurement: Measurement(distance: step.distance))
         primaryManeuver.initialTravelEstimates = CPTravelEstimates(
