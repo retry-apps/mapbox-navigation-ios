@@ -167,6 +167,8 @@ public class CarPlayManager: NSObject {
 
     @MainActor
     func navigationCameraStateDidChange(_ state: NavigationCameraState) {
+        updateUserTrackingButtonImage(for: state)
+
         switch state {
         case .idle:
             carPlayMapViewController?.recenterButton.isHidden = false
@@ -366,6 +368,30 @@ public class CarPlayManager: NSObject {
 
         return userTrackingButton
     }()
+
+    @MainActor
+    private func updateUserTrackingButtonImage(for cameraState: NavigationCameraState) {
+        let imageName: String
+        switch cameraState {
+        case .following:
+            imageName = "carplay_overview"
+        case .overview, .idle:
+            imageName = "carplay_locate"
+        }
+
+        userTrackingButton.image = UIImage(
+            named: imageName,
+            in: .mapboxNavigation,
+            compatibleWith: nil
+        )
+
+        if let mapTemplate = interfaceController?.rootTemplate as? CPMapTemplate,
+           mapTemplate.mapButtons.contains(userTrackingButton) {
+            // CarPlay may not repaint a CPMapButton after mutating its image unless the
+            // mapButtons array is reassigned.
+            mapTemplate.mapButtons = mapTemplate.mapButtons
+        }
+    }
 }
 
 // MARK: CPApplicationDelegate Methods
