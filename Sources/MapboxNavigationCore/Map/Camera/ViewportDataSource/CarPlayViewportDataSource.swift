@@ -86,7 +86,7 @@ public class CarPlayViewportDataSource: ViewportDataSource {
                 }
             }
 
-            newOptions.anchor = loweredFollowingAnchor(mapView.center, bounds: mapView.bounds)
+            newOptions.anchor = mapView.center
 
             if followingCameraOptions.pitchUpdatesAllowed || followingCamera.pitch == nil {
                 newOptions.pitch = 0.0
@@ -231,8 +231,7 @@ public class CarPlayViewportDataSource: ViewportDataSource {
                 edgeInsets: carPlayCameraPadding
             )
 
-            let loweredCarPlayCameraAnchor = loweredFollowingAnchor(followingCarPlayCameraAnchor, bounds: mapView.bounds)
-            newOptions.anchor = loweredCarPlayCameraAnchor
+            newOptions.anchor = followingCarPlayCameraAnchor
 
             if options.followingCameraOptions.pitchUpdatesAllowed || followingCamera.pitch == nil {
                 newOptions.pitch = CGFloat(pitch)
@@ -241,10 +240,10 @@ public class CarPlayViewportDataSource: ViewportDataSource {
             if options.followingCameraOptions.paddingUpdatesAllowed || followingCamera.padding == nil {
                 if mapView.window?.screen.traitCollection.userInterfaceIdiom == .carPlay {
                     newOptions.padding = UIEdgeInsets(
-                        top: loweredCarPlayCameraAnchor.y,
+                        top: followingCarPlayCameraAnchor.y,
                         left: carPlayCameraPadding.left,
                         bottom: mapView.bounds
-                            .height - loweredCarPlayCameraAnchor.y + 1.0,
+                            .height - followingCarPlayCameraAnchor.y + 1.0,
                         right: carPlayCameraPadding.right
                     )
                 } else {
@@ -253,17 +252,6 @@ public class CarPlayViewportDataSource: ViewportDataSource {
             }
         }
         return newOptions
-    }
-
-    private func loweredFollowingAnchor(_ anchor: CGPoint, bounds: CGRect) -> CGPoint {
-        guard bounds.height > 0 else { return anchor }
-
-        // Keep the CarPlay puck lower on the screen, similar to game/navigation cameras.
-        // This provides more look-ahead map area above the vehicle while preserving the
-        // data source's x position and any route-aware anchor calculation.
-        let preferredY = bounds.height * 0.72
-        let maxY = bounds.height - 24.0
-        return CGPoint(x: anchor.x, y: min(max(anchor.y, preferredY), maxY))
     }
 
     private func newOverviewCamera(with state: ViewportDataSourceState) -> CameraOptions {
