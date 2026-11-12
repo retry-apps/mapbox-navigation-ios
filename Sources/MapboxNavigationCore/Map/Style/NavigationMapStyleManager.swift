@@ -424,7 +424,11 @@ final class NavigationMapStyleManager {
         )
 
         if shouldUseDeclarativeApproach {
-            mapContent?.maneuverArrow = arrowFeature?.0
+            // Route lines carry the custom position (`custom_route_line_slot`); a fresh arrow without it falls back to
+            // the `middle` slot, which sits below that custom slot on styles that have one, hiding the arrow under the line.
+            var arrowContent = arrowFeature?.0
+            arrowContent?.customPosition = customRouteLineLayerPosition
+            mapContent?.maneuverArrow = arrowContent
         } else {
             arrowFeaturesStore.update(
                 with: arrowFeature?.1,
