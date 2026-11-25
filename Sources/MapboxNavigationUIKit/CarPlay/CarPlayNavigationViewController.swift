@@ -836,6 +836,7 @@ open class CarPlayNavigationViewController: UIViewController {
         if let maneuver = carSession.upcomingManeuvers.first {
             carSession.updateEstimates(stepEstimates, for: maneuver)
         }
+        updateNavigationMetadataState(routeProgress: routeProgress)
 
         if let compassView, !compassView.isHidden {
             compassView.course = location.course
@@ -902,6 +903,13 @@ open class CarPlayNavigationViewController: UIViewController {
     func didUpdateRoadNameFromStatus(_ state: MapMatchingState) {
         let roadNameFromStatus = state.roadName?.text
 
+        if #available(iOS 17.4, *), providesNavigationMetadata, let carSession {
+            let variants = roadNameFromStatus?.nonEmptyString.map { [$0] } ?? []
+            if carSession.currentRoadNameVariants != variants {
+                carSession.currentRoadNameVariants = variants
+            }
+        }
+
         if let roadName = roadNameFromStatus?.nonEmptyString {
             wayNameView.label.updateRoad(
                 roadName: roadName,
@@ -933,6 +941,14 @@ open class CarPlayNavigationViewController: UIViewController {
             primaryManeuver.instructionVariants = [step.instructions]
             if #available(iOS 15.4, *) {
                 primaryManeuver.cardBackgroundColor = UIColor(red: 0.0, green: 60.0 / 255.0, blue: 1.0, alpha: 1.0)
+            }
+            if #available(iOS 17.4, *), providesNavigationMetadata {
+                CarPlayNavigationMetadata.apply(
+                    to: primaryManeuver,
+                    step: step,
+                    upcomingStep: routeProgress.currentLegProgress.upcomingStep
+                )
+                carSession.add([primaryManeuver])
             }
             carSession.upcomingManeuvers = [primaryManeuver]
             return
@@ -1076,7 +1092,67 @@ open class CarPlayNavigationViewController: UIViewController {
             maneuvers.append(tertiaryManeuver)
         }
 
+        if #available(iOS 17.4, *), providesNavigationMetadata {
+            addNavigationMetadata(
+                to: maneuvers,
+                visualInstruction: visualInstruction,
+                routeProgress: routeProgress
+            )
+        }
         carSession.upcomingManeuvers = maneuvers
+    }
+
+    /// Whether this session shares maneuver metadata with the vehicle (cluster / HUD).
+    var providesNavigationMetadata: Bool {
+        carPlayManager.providesNavigationMetadata
+    }
+
+    /// Fills the vehicle metadata of the maneuvers about to be shown and adds them to the session,
+    /// which CarPlay requires before they are set as upcoming maneuvers.
+    @available(iOS 17.4, *)
+    private func addNavigationMetadata(
+        to maneuvers: [CPManeuver],
+        visualInstruction: VisualInstructionBanner,
+        routeProgress: RouteProgress
+    ) {
+        guard let primaryManeuver = maneuvers.first else { return }
+        let legProgress = routeProgress.currentLegProgress
+        CarPlayNavigationMetadata.apply(
+            to: primaryManeuver,
+            visualInstruction: visualInstruction,
+            step: legProgress.currentStep,
+            upcomingStep: legProgress.upcomingStep
+        )
+        for tertiaryManeuver in maneuvers.dropFirst() {
+            if tertiaryManeuver.userInfo is VisualInstruction {
+                // Lane banner of the same maneuver.
+                CarPlayNavigationMetadata.copy(from: primaryManeuver, to: tertiaryManeuver)
+            } else if let upcomingStep = legProgress.upcomingStep {
+                // "Then" banner: the maneuver after the upcoming one.
+                CarPlayNavigationMetadata.apply(
+                    to: tertiaryManeuver,
+                    step: upcomingStep,
+                    upcomingStep: legProgress.stepAfter(upcomingStep)
+                )
+            } else {
+                CarPlayNavigationMetadata.copy(from: primaryManeuver, to: tertiaryManeuver)
+            }
+        }
+        carSession.add(maneuvers)
+        updateNavigationMetadataState(routeProgress: routeProgress)
+    }
+
+    /// Keeps the vehicle's maneuver state in step with the distance to the maneuver.
+    private func updateNavigationMetadataState(routeProgress: RouteProgress?) {
+        guard #available(iOS 17.4, *), providesNavigationMetadata, let carSession, let routeProgress else { return }
+        let stepProgress = routeProgress.currentLegProgress.currentStepProgress
+        let state = CarPlayNavigationMetadata.maneuverState(
+            distanceRemaining: stepProgress.distanceRemaining,
+            distanceTraveled: stepProgress.distanceTraveled
+        )
+        if carSession.maneuverState != state {
+            carSession.maneuverState = state
+        }
     }
 
     /// Returns guidance view image representation if it's present in the current visual instruction.

@@ -39,6 +39,10 @@ public class CarPlayManager: NSObject {
     /// ```
     public var startFreeDriveAutomatically: Bool = true
 
+    /// Whether active guidance shares maneuver metadata with the vehicle (iOS 17.4+), which cars draw
+    /// in their instrument cluster or head-up display. See `CarPlayNavigationMetadata`.
+    public var providesNavigationMetadata: Bool = true
+
     /// Developers should assign their own object as a delegate implementing the ``CarPlayManagerDelegate`` protocol for
     /// customization.
     public weak var delegate: CarPlayManagerDelegate?
@@ -917,6 +921,11 @@ extension CarPlayManager {
 // MARK: CPMapTemplateDelegate Methods
 
 extension CarPlayManager: CPMapTemplateDelegate {
+    @available(iOS 17.4, *)
+    public func mapTemplateShouldProvideNavigationMetadata(_ mapTemplate: CPMapTemplate) -> Bool {
+        providesNavigationMetadata
+    }
+
     @MainActor
     public func mapTemplate(
         _ mapTemplate: CPMapTemplate,
