@@ -55,6 +55,9 @@ public class CarPlayViewportDataSource: ViewportDataSource {
         }
     }
 
+    /// Share of the stock centre-to-bottom puck offset used in active guidance (1 = stock, 0 = centred).
+    private static let followingAnchorDepth = 0.45
+
     private func newFollowingCamera(with state: ViewportDataSourceState) -> CameraOptions {
         guard let mapView else { return .init() }
 
@@ -225,8 +228,11 @@ public class CarPlayViewportDataSource: ViewportDataSource {
                 newOptions.bearing = bearing
             }
 
+            // The stock anchor puts the puck 7 pt above the bottom of the padded viewport at full
+            // pitch; on short, wide head units a 3D puck then sits on the bottom edge. Scaling the
+            // pitch-driven offset keeps it around 70% of the padded height instead.
             let followingCarPlayCameraAnchor = anchor(
-                pitchСoefficient,
+                pitchСoefficient * Self.followingAnchorDepth,
                 bounds: mapView.bounds,
                 edgeInsets: carPlayCameraPadding
             )
